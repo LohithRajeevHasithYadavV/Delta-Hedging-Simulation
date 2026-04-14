@@ -1,4 +1,4 @@
-# Group 8 - Delta Hedging Simulation
+# Group 6 - Delta Hedging Simulation
 
 This repository contains a comprehensive framework for simulating and analyzing delta hedging strategies in financial markets.
 

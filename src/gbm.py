@@ -1,5 +1,5 @@
 '''
-gbm.py
+src/gbm.py
 Generate stock price paths and time steps for delta hedging using Geometric Brownian Motion
 '''
 
@@ -65,13 +65,13 @@ def simulate_gbm_paths(
     log_paths = np.cumsum(log_returns, axis=1)
 
     # prepend zeros for initial price
-    log_paths = np.concatenate((np.zeros((M, 1)), log_paths), axis=1)
+    log_paths = np.concatenate((np.zeros((M, 1),dtype = float), log_paths), axis=1)
 
     # convert log paths to price paths
     paths = S0 * np.exp(log_paths)
     return paths
 
-def theoretical_terminal_mean(S0: float, r: float, sigma: float, T: float) -> float:
+def theoretical_terminal_mean(S0: float, r: float, T: float) -> float:
     '''Calculate theoretical mean of terminal stock price'''
     return S0 * np.exp(r * T)
 
@@ -93,10 +93,10 @@ def validate_gbm_paths(
     # Calculate empirical mean and variance of terminal stock prices
     terminal_prices = paths[:, -1]
     empirical_mean = np.mean(terminal_prices)
-    empirical_variance = np.var(terminal_prices)
+    empirical_variance = np.var(terminal_prices, ddof=1)  # Sample variance 
 
     # Calculate theoretical mean and variance
-    theoretical_mean = theoretical_terminal_mean(S0, r, sigma, T)
+    theoretical_mean = theoretical_terminal_mean(S0, r, T)
     theoretical_variance = theoretical_terminal_variance(S0, r, sigma, T)
 
     # Return validation results
@@ -107,12 +107,14 @@ def validate_gbm_paths(
         "theoretical_variance": theoretical_variance,
         "mean_error": abs(empirical_mean - theoretical_mean),
         "variance_error": abs(empirical_variance - theoretical_variance),
+        "relative_mean_error": abs(empirical_mean - theoretical_mean) / theoretical_mean if theoretical_mean != 0 else float('inf'),
+        "relative_variance_error": abs(empirical_variance - theoretical_variance) / theoretical_variance if theoretical_variance != 0 else float('inf')
     }
 
 def plot_sample_paths(
         paths: np.ndarray,
         T: float,
-        N : int = 10,
+        num_paths : int = 10,
         title: str = "Sample GBM Paths") -> None:
     '''Plot subset of simulated GBM paths'''
 
@@ -124,7 +126,7 @@ def plot_sample_paths(
     if M == 0:
         raise ValueError("No paths to plot.")
     
-    n_plot = min(N, M)
+    n_plot = min(num_paths, M)
     time_grid = generate_time_grid(T, N_plus_1 - 1) 
     plt.figure(figsize=(10, 6))
     for i in range(n_plot):
@@ -134,7 +136,9 @@ def plot_sample_paths(
     plt.ylabel("Stock Price")
     plt.grid(True, alpha = 0.3)
     plt.tight_layout()
+    plt.savefig("imgs/sample_gbm_paths.png")
     plt.show()
+    
 
 def demo()-> None:
     ''' 
@@ -150,7 +154,7 @@ def demo()-> None:
         sigma=0.2,
         T=1.0,
         N=252, # daily steps for 1 year 
-        M=5000, # Monte Carlo paths
+        M=10000, # Monte Carlo paths
         seed=42
     )
 
@@ -164,9 +168,15 @@ def demo()-> None:
     print("Validation Summary:")
     for key, value in summary.items():
         print(f"{key}: {value:.4f}")
+    
+    # save summary as a table 
+    with open("imgs/gbm_validation_summary.txt", "w") as f:
+        f.write("Validation Summary:\n")
+        for key, value in summary.items():
+            f.write(f"{key}: {value:.4f}\n")
 
     print("Plotting sample paths...")
-    plot_sample_paths(paths, cfg.T, N=10, title="Sample GBM Paths")
+    plot_sample_paths(paths, cfg.T, num_paths=50, title="Sample GBM Paths")
 
 if __name__ == "__main__":
     demo()
